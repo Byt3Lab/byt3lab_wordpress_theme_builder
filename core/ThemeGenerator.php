@@ -91,4 +91,25 @@ class ThemeGenerator
 
         return true;
     }
+
+    /**
+     * Delete a generated theme directory. Prevent deleting active theme.
+     */
+    public function delete($slug)
+    {
+        $themePath = WP_CONTENT_DIR . '/themes/' . $slug;
+        if (!file_exists($themePath)) {
+            return new \WP_Error('theme_not_found', 'Thème introuvable.');
+        }
+
+        // Prevent deleting active theme
+        if (function_exists('get_stylesheet') && get_stylesheet() === $slug) {
+            return new \WP_Error('theme_active', 'Impossible de supprimer le thème actif.');
+        }
+
+        // Use FileManager to remove directory
+        $fm = $this->fileManager;
+        $fm->deleteDirectory($themePath);
+        return true;
+    }
 }

@@ -56,6 +56,27 @@ class ThemeController
             }
         }
 
+        // Handle theme deletion
+        if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['delete_theme'])) {
+            check_admin_referer('delete_theme_nonce');
+            if (! current_user_can('manage_options')) {
+                $message = '<div class="notice notice-error is-dismissible"><p>Permission refusée.</p></div>';
+            } else {
+                $themeSlug = sanitize_title($_POST['theme_slug'] ?? '');
+                if (empty($themeSlug)) {
+                    $message = '<div class="notice notice-error is-dismissible"><p>Spécifiez un thème.</p></div>';
+                } else {
+                    $generator = new ThemeGenerator();
+                    $res = $generator->delete($themeSlug);
+                    if (is_wp_error($res)) {
+                        $message = '<div class="notice notice-error is-dismissible"><p>' . esc_html($res->get_error_message()) . '</p></div>';
+                    } else {
+                        $message = '<div class="notice notice-success is-dismissible"><p>Thème supprimé.</p></div>';
+                    }
+                }
+            }
+        }
+
         // Fetch our builder themes
         $themes = wp_get_themes();
         $builderThemes = [];

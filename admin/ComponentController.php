@@ -166,6 +166,69 @@ class ComponentController
             }
         }
 
+        // Handle component deletion
+        if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['delete_component'])) {
+            check_admin_referer('delete_component_nonce');
+            if (! current_user_can('manage_options')) {
+                $message = '<div class="notice notice-error is-dismissible"><p>Permission refusée.</p></div>';
+            } else {
+                $theme = sanitize_title($_POST['theme_slug'] ?? '');
+                $compSlug = sanitize_file_name($_POST['component_slug'] ?? '');
+                if (empty($theme) || empty($compSlug)) {
+                    $message = '<div class="notice notice-error is-dismissible"><p>Paramètres invalides.</p></div>';
+                } else {
+                    $generator = new ComponentGenerator();
+                    $res = $generator->delete($theme, $compSlug);
+                    if (is_wp_error($res)) {
+                        $message = '<div class="notice notice-error is-dismissible"><p>' . esc_html($res->get_error_message()) . '</p></div>';
+                    } else {
+                        $message = '<div class="notice notice-success is-dismissible"><p>Composant supprimé.</p></div>';
+                    }
+                }
+            }
+        }
+
+        // Handle component reorder (move up/down in config)
+        if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['move_component'])) {
+            check_admin_referer('move_component_nonce');
+            if (! current_user_can('manage_options')) {
+                $message = '<div class="notice notice-error is-dismissible"><p>Permission refusée.</p></div>';
+            } else {
+                $theme = sanitize_title($_POST['theme_slug'] ?? '');
+                $compSlug = sanitize_file_name($_POST['component_slug'] ?? '');
+                $direction = sanitize_text_field($_POST['direction'] ?? '');
+                if (empty($theme) || empty($compSlug) || !in_array($direction, ['up','down'])) {
+                    $message = '<div class="notice notice-error is-dismissible"><p>Paramètres invalides.</p></div>';
+                } else {
+                    $themePath = WP_CONTENT_DIR . '/themes/' . $theme;
+                    $config = $this->fileManager->getContents($themePath . '/config.json');
+                    $cfg = $config ? json_decode($config, true) : null;
+                    if (!$cfg || empty($cfg['components']) || !is_array($cfg['components'])) {
+                        $message = '<div class="notice notice-error is-dismissible"><p>Configuration introuvable.</p></div>';
+                    } else {
+                        $foundIndex = null;
+                        foreach ($cfg['components'] as $i => $c) {
+                            if (($c['slug'] ?? '') === $compSlug) { $foundIndex = $i; break; }
+                        }
+                        if ($foundIndex === null) {
+                            $message = '<div class="notice notice-error is-dismissible"><p>Composant non trouvé dans la config.</p></div>';
+                        } else {
+                            $swapIndex = ($direction === 'up') ? $foundIndex - 1 : $foundIndex + 1;
+                            if ($swapIndex < 0 || $swapIndex >= count($cfg['components'])) {
+                                $message = '<div class="notice notice-warning is-dismissible"><p>Impossible de déplacer plus loin.</p></div>';
+                            } else {
+                                $tmp = $cfg['components'][$swapIndex];
+                                $cfg['components'][$swapIndex] = $cfg['components'][$foundIndex];
+                                $cfg['components'][$foundIndex] = $tmp;
+                                $this->fileManager->putContents($themePath . '/config.json', json_encode($cfg, JSON_PRETTY_PRINT));
+                                $message = '<div class="notice notice-success is-dismissible"><p>Ordre mis à jour.</p></div>';
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
         // Fetch our builder themes to populate dropdown
         $themes = wp_get_themes();
         $builderThemes = [];

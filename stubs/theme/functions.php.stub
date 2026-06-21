@@ -8,4 +8,42 @@ if (!defined('ABSPATH')) {
 // Enqueue scripts and styles
 add_action('wp_enqueue_scripts', function() {
     wp_enqueue_style('{{SLUG}}-style', get_stylesheet_uri(), [], '{{VERSION}}');
+    // Auto-include assets declared in config.json
+    $configPath = get_stylesheet_directory() . '/config.json';
+    if (file_exists($configPath)) {
+        $json = json_decode(file_get_contents($configPath), true);
+        $themeVersion = wp_get_theme()->get('Version') ?: '{{VERSION}}';
+
+        if (!empty($json['assets']['css']) && is_array($json['assets']['css'])) {
+            foreach ($json['assets']['css'] as $asset) {
+                $asset = ltrim($asset, '/');
+                $isExternal = (preg_match('#^https?://#i', $asset) || strpos($asset, '//') === 0);
+                $isThemeAsset = (strpos($asset, 'assets/') === 0);
+                if (!$isExternal && !$isThemeAsset) {
+                    continue;
+                }
+                $src = $isExternal ? $asset : get_stylesheet_directory_uri() . '/' . $asset;
+                $handle = sanitize_key('{{SLUG}}-' . str_replace(array('/', '\\', '.', ' '), '-', $asset));
+                if (!wp_style_is($handle, 'enqueued')) {
+                    wp_enqueue_style($handle, $src, array(), $themeVersion);
+                }
+            }
+        }
+
+        if (!empty($json['assets']['js']) && is_array($json['assets']['js'])) {
+            foreach ($json['assets']['js'] as $asset) {
+                $asset = ltrim($asset, '/');
+                $isExternal = (preg_match('#^https?://#i', $asset) || strpos($asset, '//') === 0);
+                $isThemeAsset = (strpos($asset, 'assets/') === 0);
+                if (!$isExternal && !$isThemeAsset) {
+                    continue;
+                }
+                $src = $isExternal ? $asset : get_stylesheet_directory_uri() . '/' . $asset;
+                $handle = sanitize_key('{{SLUG}}-' . str_replace(array('/', '\\', '.', ' '), '-', $asset));
+                if (!wp_script_is($handle, 'enqueued')) {
+                    wp_enqueue_script($handle, $src, array(), $themeVersion, true);
+                }
+            }
+        }
+    }
 });

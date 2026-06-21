@@ -51,35 +51,106 @@ class PageGenerator
         }
 
         // 1. Sauvegarder la configuration JSON
+        // Normalize and create page-level assets when necessary
+        $themeCssDir = $themePath . '/assets/css';
+        $themeJsDir = $themePath . '/assets/js';
+        $this->fileManager->createDirectory($themeCssDir);
+        $this->fileManager->createDirectory($themeJsDir);
+
+        // Helper to normalize and ensure files
+        $normalizeAssets = function ($items, $type) use ($themeCssDir, $themeJsDir, $themePath) {
+            $out = [];
+            if (!is_array($items)) return $out;
+            foreach ($items as $it) {
+                $it = trim($it);
+                if ($it === '') continue;
+                // external URL
+                if (preg_match('#^https?://#i', $it) || strpos($it, '//') === 0) {
+                    $out[] = $it;
+                    continue;
+                }
+                // already a path (assets/ or components/ or contains slash)
+                if (strpos($it, 'assets/') === 0 || strpos($it, 'components/') === 0 || strpos($it, '/') !== false) {
+                    $out[] = $it;
+                    continue;
+                }
+
+                // simple filename -> place under assets/css or assets/js
+                $filename = sanitize_file_name($it);
+                if ($type === 'css') {
+                    $destRel = 'assets/css/' . $filename;
+                    $destAbs = $themeCssDir . '/' . $filename;
+                    if (!file_exists($destAbs)) {
+                        $content = "/* BYT3LAB page asset - $filename */\n";
+                        file_put_contents($destAbs, $content);
+                    }
+                    $out[] = $destRel;
+                } else {
+                    $destRel = 'assets/js/' . $filename;
+                    $destAbs = $themeJsDir . '/' . $filename;
+                    if (!file_exists($destAbs)) {
+                        $content = "// BYT3LAB page asset - $filename\n";
+                        file_put_contents($destAbs, $content);
+                    }
+                    $out[] = $destRel;
+                }
+            }
+            return $out;
+        };
+
+        // Normalize css_files/js_files into paths under assets/ if simple filenames provided
+        if (!empty($data['css_files']) && is_array($data['css_files'])) {
+            $data['css_files'] = $normalizeAssets($data['css_files'], 'css');
+        }
+        if (!empty($data['js_files']) && is_array($data['js_files'])) {
+            $data['js_files'] = $normalizeAssets($data['js_files'], 'js');
+        }
+
         $jsonPath = $pagesDir . '/page-' . $slug . '.json';
         $this->fileManager->putContents($jsonPath, json_encode($data, JSON_PRETTY_PRINT));
 
         // 2. Générer le fichier PHP final
         $pagePath = $pagesDir . '/page-' . $slug . '.php';
 
-        // Generate a content-only page template (header/footer managed by page.php loader)
-        $phpContent = "<?php\n";
-        $phpContent .= "/*\n";
-        $phpContent .= "Template Name: " . esc_html($data['title']) . "\n";
-        if (!empty($data['description'])) {
-            $phpContent .= "Description: " . esc_html($data['description']) . "\n";
-        }
-        $phpContent .= "*/\n\n";
+        // Generate a content-only page template (assets handled by functions.php enqueue hook)
+        $phpTemplate = <<<'PHP'
+<?php
+/*
+Template Name: __TITLE__
+Description: __DESCRIPTION__
+*/
+// Assets (CSS/JS) for this page are enqueued by functions.php via wp_enqueue_scripts.
+// Edit pages/__PAGE_SLUG__.json to add/remove/reorder assets and components.
+?>
 
-        $phpContent .= "?>\n\n";
+<main id="primary" class="site-main">
 
-        $phpContent .= "<main id=\"primary\" class=\"site-main\">\n\n";
+__COMPONENTS__
 
+</main>
+PHP;
+
+        $componentsHtml = '';
         if (!empty($data['components'])) {
             foreach ($data['components'] as $comp) {
                 $compEsc = esc_html($comp);
-                $phpContent .= "<?php get_template_part('components/{$compEsc}/{$compEsc}'); ?>\n";
+                $componentsHtml .= "<?php get_template_part('components/{$compEsc}/{$compEsc}'); ?>\n";
             }
         } else {
-            $phpContent .= "    <!-- Le contenu généré ou les composants iront ici -->\n";
+            $componentsHtml = "    <!-- Le contenu généré ou les composants iront ici -->\n";
         }
 
-        $phpContent .= "\n</main>\n";
+        $phpContent = str_replace([
+            '__TITLE__',
+            '__DESCRIPTION__',
+            '__PAGE_SLUG__',
+            '__COMPONENTS__'
+        ], [
+            esc_html($data['title']),
+            esc_html($data['description'] ?? ''),
+            $slug,
+            $componentsHtml
+        ], $phpTemplate);
 
         $this->fileManager->putContents($pagePath, $phpContent);
 
@@ -87,14 +158,16 @@ class PageGenerator
         $templateManager = new TemplateManager();
         $templateManager->ensureDynamicTemplates($themePath);
 
-        // Update config
+        // Update config (pages only)
         $config = $this->configManager->readConfig($themePath);
         if ($config) {
-            // Check if page already exists
-            $exists = false;
+            // Ensure pages array exists
             if (!isset($config['pages'])) {
                 $config['pages'] = [];
             }
+
+            // Check if page already exists
+            $exists = false;
             foreach ($config['pages'] as &$p) {
                 if ($p['filename'] === 'pages/page-' . $slug . '.php') {
                     $p['title'] = sanitize_text_field($data['title']);
@@ -107,8 +180,43 @@ class PageGenerator
                     'filename' => 'pages/page-' . $slug . '.php'
                 ];
             }
+
             $configJson = json_encode($config, JSON_PRETTY_PRINT);
             $this->fileManager->putContents($themePath . '/config.json', $configJson);
+        }
+
+
+        return true;
+    }
+
+    /**
+     * Delete a page from a theme (files + config update)
+     */
+    public function delete($theme, $slug)
+    {
+        $themePath = WP_CONTENT_DIR . '/themes/' . $theme;
+        $pagesDir = $themePath . '/pages';
+        $phpPath = $pagesDir . '/page-' . $slug . '.php';
+        $jsonPath = $pagesDir . '/page-' . $slug . '.json';
+
+        if (!file_exists($phpPath) && !file_exists($jsonPath)) {
+            return new \WP_Error('page_not_found', 'Page introuvable.');
+        }
+
+        if (file_exists($phpPath)) {
+            unlink($phpPath);
+        }
+        if (file_exists($jsonPath)) {
+            unlink($jsonPath);
+        }
+
+        // Update config
+        $config = $this->configManager->readConfig($themePath);
+        if ($config && !empty($config['pages']) && is_array($config['pages'])) {
+            $config['pages'] = array_values(array_filter($config['pages'], function ($p) use ($slug) {
+                return ($p['filename'] ?? '') !== 'pages/page-' . $slug . '.php';
+            }));
+            $this->fileManager->putContents($themePath . '/config.json', json_encode($config, JSON_PRETTY_PRINT));
         }
 
         return true;

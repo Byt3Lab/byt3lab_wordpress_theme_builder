@@ -144,7 +144,30 @@
                                         <td><?= esc_html($comp['type']) ?></td>
                                         <td>
                                             <a href="<?= admin_url('admin.php?page=byt3lab-builder-editor&theme=' . urlencode($selectedTheme) . '&file=' . urlencode('components/' . $comp['slug'] . '/' . $comp['slug'] . '.php')) ?>">Éditer PHP</a> |
-                                            <a href="<?= admin_url('admin.php?page=byt3lab-builder-editor&theme=' . urlencode($selectedTheme) . '&file=' . urlencode('components/' . $comp['slug'] . '/' . $comp['slug'] . '.css')) ?>">Éditer CSS</a>
+                                            <a href="<?= admin_url('admin.php?page=byt3lab-builder-editor&theme=' . urlencode($selectedTheme) . '&file=' . urlencode('components/' . $comp['slug'] . '/' . $comp['slug'] . '.css')) ?>">Éditer CSS</a> |
+                                            <form method="POST" action="" style="display:inline; margin:0 6px;">
+                                                <?php wp_nonce_field('delete_component_nonce'); ?>
+                                                <input type="hidden" name="delete_component" value="1">
+                                                <input type="hidden" name="theme_slug" value="<?= esc_attr($selectedTheme) ?>">
+                                                <input type="hidden" name="component_slug" value="<?= esc_attr($comp['slug']) ?>">
+                                                <button class="button-link" onclick="return confirm('Supprimer le composant ?')">Supprimer</button>
+                                            </form>
+                                            <form method="POST" action="" style="display:inline; margin:0 6px;">
+                                                <?php wp_nonce_field('move_component_nonce'); ?>
+                                                <input type="hidden" name="move_component" value="1">
+                                                <input type="hidden" name="theme_slug" value="<?= esc_attr($selectedTheme) ?>">
+                                                <input type="hidden" name="component_slug" value="<?= esc_attr($comp['slug']) ?>">
+                                                <input type="hidden" name="direction" value="up">
+                                                <button class="button-link">↑</button>
+                                            </form>
+                                            <form method="POST" action="" style="display:inline; margin:0 6px;">
+                                                <?php wp_nonce_field('move_component_nonce'); ?>
+                                                <input type="hidden" name="move_component" value="1">
+                                                <input type="hidden" name="theme_slug" value="<?= esc_attr($selectedTheme) ?>">
+                                                <input type="hidden" name="component_slug" value="<?= esc_attr($comp['slug']) ?>">
+                                                <input type="hidden" name="direction" value="down">
+                                                <button class="button-link">↓</button>
+                                            </form>
                                         </td>
                                     </tr>
                                 <?php endforeach; ?>

@@ -102,6 +102,14 @@
                                     <?php endif; ?>
                                     <a href="<?= admin_url('customize.php?theme=' . urlencode($slug)) ?>">Prévisualiser</a> |
                                     <a href="<?= wp_nonce_url(admin_url('admin.php?page=byt3lab-builder-export&action=export&theme=' . urlencode($slug)), 'export_theme_' . $slug) ?>">Exporter</a>
+                                    <?php if ($slug !== get_template()): ?>
+                                        | <form method="POST" action="" style="display:inline; margin:0 6px;">
+                                            <?php wp_nonce_field('delete_theme_nonce'); ?>
+                                            <input type="hidden" name="delete_theme" value="1">
+                                            <input type="hidden" name="theme_slug" value="<?= esc_attr($slug) ?>">
+                                            <button class="button-link" onclick="return confirm('Confirmer la suppression du thème ?')">Supprimer</button>
+                                        </form>
+                                    <?php endif; ?>
                                 </td>
                             </tr>
                         <?php endforeach; ?>
