@@ -1,0 +1,11 @@
+<?php
+// {{NAME}} Functions
+
+if (!defined('ABSPATH')) {
+    exit;
+}
+
+// Enqueue scripts and styles
+add_action('wp_enqueue_scripts', function() {
+    wp_enqueue_style('{{SLUG}}-style', get_stylesheet_uri(), [], '{{VERSION}}');
+});
