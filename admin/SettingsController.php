@@ -1,11 +1,15 @@
 <?php
+
 namespace Byt3lab\Builder\Admin;
+
 use Byt3lab\Builder\Core\FileManager;
 use Byt3lab\Builder\Core\ConfigManager;
 use Byt3lab\Builder\Core\TemplateManager;
 
-class SettingsController {
-    public function render() {
+class SettingsController
+{
+    public function render()
+    {
         $message = '';
 
         // Detect oversized POSTs (common cause of "Le lien suivi est expiré")
@@ -82,112 +86,6 @@ class SettingsController {
         $fileManager = new FileManager();
         $configManager = new ConfigManager($fileManager);
 
-        // Handle theme screenshot upload
-        if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['upload_theme_screenshot'])) {
-            check_admin_referer('upload_theme_screenshot_nonce');
-
-            if (! current_user_can('manage_options')) {
-                $message = '<div class="notice notice-error is-dismissible"><p>Permission refusée.</p></div>';
-            } else {
-                $theme = sanitize_title($_POST['theme_slug'] ?? ($_POST['theme_select'] ?? ''));
-                if (empty($theme)) {
-                    $message = '<div class="notice notice-error is-dismissible"><p>Veuillez sélectionner un thème.</p></div>';
-                } elseif (! isset($_FILES['theme_screenshot']) || empty($_FILES['theme_screenshot']['tmp_name'])) {
-                    $message = '<div class="notice notice-error is-dismissible"><p>Aucun fichier reçu.</p></div>';
-                } else {
-                    $file = $_FILES['theme_screenshot'];
-                    if ($file['error'] !== UPLOAD_ERR_OK) {
-                        $message = '<div class="notice notice-error is-dismissible"><p>Erreur lors de l\'upload.</p></div>';
-                    } else {
-                        $info = @getimagesize($file['tmp_name']);
-                        $mime = $info['mime'] ?? '';
-                        $extMap = [
-                            'image/png' => 'png',
-                            'image/jpeg' => 'jpg',
-                            'image/gif' => 'gif',
-                        ];
-                        if (! isset($extMap[$mime])) {
-                            $message = '<div class="notice notice-error is-dismissible"><p>Type d\'image non autorisé. Seuls PNG/JPEG/GIF sont pris en charge.</p></div>';
-                        } else {
-                            $ext = $extMap[$mime];
-                            $themePath = WP_CONTENT_DIR . '/themes/' . $theme;
-                            if (! file_exists($themePath)) {
-                                $message = '<div class="notice notice-error is-dismissible"><p>Thème introuvable.</p></div>';
-                            } else {
-                                // Backup existing screenshot if needed
-                                $destFilename = 'screenshot.' . $ext;
-                                $existing = null;
-                                $possible = ['screenshot.png','screenshot.jpg','screenshot.jpeg','screenshot.gif'];
-                                foreach ($possible as $p) {
-                                    if (file_exists($themePath . '/' . $p)) {
-                                        $existing = $themePath . '/' . $p;
-                                        break;
-                                    }
-                                }
-
-                                $backupOpt = get_option('byt3lab_auto_backup', '0');
-                                if ($existing && $backupOpt === '1') {
-                                    $backupDir = $themePath . '/.byt3lab_backups';
-                                    $fileManager->createDirectory($backupDir);
-                                    $time = gmdate('Ymd-His');
-                                    $basename = basename($existing);
-                                    copy($existing, $backupDir . '/' . $basename . '.' . $time . '.bak');
-                                }
-
-                                // Remove existing screenshots with different extensions
-                                foreach ($possible as $p) {
-                                    $fp = $themePath . '/' . $p;
-                                    if (file_exists($fp)) {
-                                        @unlink($fp);
-                                    }
-                                }
-
-                                $destPath = $themePath . '/' . $destFilename;
-                                // Move the uploaded file
-                                if (! move_uploaded_file($file['tmp_name'], $destPath)) {
-                                    // fallback: save file contents
-                                    $data = file_get_contents($file['tmp_name']);
-                                    $fileManager->putContents($destPath, $data);
-                                }
-
-                                $message = '<div class="notice notice-success is-dismissible"><p>Capture d\'écran enregistrée pour le thème.</p></div>';
-                            }
-                        }
-                    }
-                }
-            }
-        }
-
-        // Handle remove screenshot
-        if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['remove_theme_screenshot'])) {
-            check_admin_referer('remove_theme_screenshot_nonce');
-
-            if (! current_user_can('manage_options')) {
-                $message = '<div class="notice notice-error is-dismissible"><p>Permission refusée.</p></div>';
-            } else {
-                $theme = sanitize_title($_POST['theme_slug'] ?? ($_POST['theme_select'] ?? ''));
-                if (empty($theme)) {
-                    $message = '<div class="notice notice-error is-dismissible"><p>Veuillez sélectionner un thème.</p></div>';
-                } else {
-                    $themePath = WP_CONTENT_DIR . '/themes/' . $theme;
-                    $possible = ['screenshot.png','screenshot.jpg','screenshot.jpeg','screenshot.gif'];
-                    $deleted = [];
-                    foreach ($possible as $p) {
-                        $fp = $themePath . '/' . $p;
-                        if (file_exists($fp)) {
-                            if (@unlink($fp)) {
-                                $deleted[] = $p;
-                            }
-                        }
-                    }
-                    if (!empty($deleted)) {
-                        $message = '<div class="notice notice-success is-dismissible"><p>Capture d\'écran supprimée.</p></div>';
-                    } else {
-                        $message = '<div class="notice notice-warning is-dismissible"><p>Aucune capture trouvée à supprimer.</p></div>';
-                    }
-                }
-            }
-        }
 
         $selectedTheme = $_GET['theme'] ?? get_option('byt3lab_builder_working_theme', '');
         $availablePages = [];
@@ -225,7 +123,8 @@ class SettingsController {
      * @param string $val
      * @return int
      */
-    protected function parseBytes($val) {
+    protected function parseBytes($val)
+    {
         $val = trim($val);
         if ($val === '') return 0;
         $unit = strtolower(substr($val, -1));

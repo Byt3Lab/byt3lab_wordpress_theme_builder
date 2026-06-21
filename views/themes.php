@@ -70,6 +70,50 @@
                     </p>
                 </form>
             </div>
+
+            <div class="card" style="max-width: 100%; margin-top: 20px;">
+                <h2>Modifier un Thème (Titre & Description)</h2>
+                <form method="POST" action="">
+                    <?php wp_nonce_field('edit_theme_nonce'); ?>
+                    <input type="hidden" name="edit_theme" value="1">
+
+                    <p>
+                        <label>Choisir un thème :</label><br>
+                        <select name="theme_slug" id="edit_theme_select" required class="regular-text" onchange="fillEditTheme()">
+                            <option value="">-- Sélectionner --</option>
+                            <?php foreach ($builderThemes as $slug => $theme): ?>
+                                <option value="<?= esc_attr($slug) ?>" data-name="<?= esc_attr($theme->get('Name')) ?>" data-desc="<?= esc_attr($theme->get('Description')) ?>"><?= esc_html($theme->get('Name')) ?></option>
+                            <?php endforeach; ?>
+                        </select>
+                    </p>
+                    <p>
+                        <label>Nouveau Titre :</label><br>
+                        <input type="text" name="theme_name" id="edit_theme_name" required class="regular-text">
+                    </p>
+                    <p>
+                        <label>Nouvelle Description :</label><br>
+                        <textarea name="theme_description" id="edit_theme_desc" rows="3" class="regular-text"></textarea>
+                    </p>
+                    <p>
+                        <button type="submit" class="button button-secondary">Mettre à jour</button>
+                    </p>
+                </form>
+                <script>
+                    function fillEditTheme() {
+                        const sel = document.getElementById('edit_theme_select');
+                        const opt = sel.options[sel.selectedIndex];
+                        const n = document.getElementById('edit_theme_name');
+                        const d = document.getElementById('edit_theme_desc');
+                        if (opt && opt.value) {
+                            n.value = opt.getAttribute('data-name') || '';
+                            d.value = opt.getAttribute('data-desc') || '';
+                        } else {
+                            n.value = '';
+                            d.value = '';
+                        }
+                    }
+                </script>
+            </div>
         </div>
 
         <!-- Right Column: List -->

@@ -42,17 +42,56 @@ class ThemeController
                     $ext = strtolower(pathinfo($_FILES['screenshot_file']['name'], PATHINFO_EXTENSION));
                     if (in_array($ext, ['png', 'jpg', 'jpeg'])) {
                         $dest = $themeDir . '/screenshot.' . $ext;
+
+                        // Remove old screenshots first
+                        $possible = ['screenshot.png', 'screenshot.jpg', 'screenshot.jpeg', 'screenshot.gif'];
+                        foreach ($possible as $p) {
+                            if (file_exists($themeDir . '/' . $p)) @unlink($themeDir . '/' . $p);
+                        }
+
                         if (move_uploaded_file($tmp, $dest)) {
                             $message = '<div class="notice notice-success is-dismissible"><p>Capture d\'écran mise à jour !</p></div>';
                         } else {
-                            $message = '<div class="notice notice-error is-dismissible"><p>Erreur lors du déplacement du fichier image.</p></div>';
+                            // Robust fallback for strict server TMP permissions
+                            $data = file_get_contents($tmp);
+                            if ($data !== false && file_put_contents($dest, $data) !== false) {
+                                $message = '<div class="notice notice-success is-dismissible"><p>Capture d\'écran mise à jour avec succès (via Fallback) !</p></div>';
+                            } else {
+                                $message = '<div class="notice notice-error is-dismissible"><p>Erreur lors du déplacement du fichier image (Droits d\'écriture).</p></div>';
+                            }
                         }
                     } else {
                         $message = '<div class="notice notice-error is-dismissible"><p>Seules les images PNG et JPG sont autorisées pour la capture d\'écran (screenshot).*</p></div>';
                     }
+                } else {
+                    $message = '<div class="notice notice-error is-dismissible"><p>Erreur lors du téléchargement du fichier (Taille trop grande ou fichier corrompu).</p></div>';
                 }
             } else {
                 $message = '<div class="notice notice-error is-dismissible"><p>Thème introuvable.</p></div>';
+            }
+        } elseif ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['edit_theme'])) {
+            check_admin_referer('edit_theme_nonce');
+            $themeSlug = sanitize_title($_POST['theme_slug']);
+            $newName = sanitize_text_field($_POST['theme_name']);
+            $newDesc = sanitize_textarea_field($_POST['theme_description']);
+
+            $themeDir = WP_CONTENT_DIR . '/themes/' . $themeSlug;
+            if (file_exists($themeDir . '/style.css')) {
+                $style = file_get_contents($themeDir . '/style.css');
+                $style = preg_replace('/^(Theme Name:\s*).*$/m', '${1}' . $newName, $style);
+                $style = preg_replace('/^(Description:\s*).*$/m', '${1}' . $newDesc, $style);
+                file_put_contents($themeDir . '/style.css', $style);
+
+                if (file_exists($themeDir . '/config.json')) {
+                    $config = json_decode(file_get_contents($themeDir . '/config.json'), true);
+                    if (is_array($config)) {
+                        $config['name'] = $newName;
+                        file_put_contents($themeDir . '/config.json', json_encode($config, JSON_PRETTY_PRINT));
+                    }
+                }
+                $message = '<div class="notice notice-success is-dismissible"><p>Thème mis à jour avec succès !</p></div>';
+            } else {
+                $message = '<div class="notice notice-error is-dismissible"><p>Thème introuvable ou style.css manquant.</p></div>';
             }
         }
 
