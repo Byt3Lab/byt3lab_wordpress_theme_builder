@@ -27,10 +27,19 @@ class PageGenerator
 
         $slug = !empty($data['slug']) ? sanitize_title($data['slug']) : sanitize_title($data['title']);
         $data['slug'] = $slug;
+        $isEdit = !empty($_POST['is_edit']);
 
         $pagesDir = $themePath . '/pages';
         if (!file_exists($pagesDir)) {
             $this->fileManager->createDirectory($pagesDir);
+        }
+
+        // Check if page already exists and this is not an edit
+        if (!$isEdit) {
+            $phpPath = $pagesDir . '/page-' . $slug . '.php';
+            if (file_exists($phpPath)) {
+                return new \WP_Error('page_exists', 'Une page avec ce slug existe déjà.');
+            }
         }
 
         // Ensure components referenced by the page exist in the theme.

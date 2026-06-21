@@ -5,45 +5,97 @@ if (!defined('ABSPATH')) {
     exit;
 }
 
-// Enqueue scripts and styles
-add_action('wp_enqueue_scripts', function() {
+// Enqueue theme base style
+add_action('wp_enqueue_scripts', function () {
     wp_enqueue_style('{{SLUG}}-style', get_stylesheet_uri(), [], '{{VERSION}}');
-    // Auto-include assets declared in config.json
-    $configPath = get_stylesheet_directory() . '/config.json';
-    if (file_exists($configPath)) {
-        $json = json_decode(file_get_contents($configPath), true);
-        $themeVersion = wp_get_theme()->get('Version') ?: '{{VERSION}}';
+});
 
-        if (!empty($json['assets']['css']) && is_array($json['assets']['css'])) {
-            foreach ($json['assets']['css'] as $asset) {
-                $asset = ltrim($asset, '/');
-                $isExternal = (preg_match('#^https?://#i', $asset) || strpos($asset, '//') === 0);
-                $isThemeAsset = (strpos($asset, 'assets/') === 0);
-                if (!$isExternal && !$isThemeAsset) {
-                    continue;
-                }
-                $src = $isExternal ? $asset : get_stylesheet_directory_uri() . '/' . $asset;
-                $handle = sanitize_key('{{SLUG}}-' . str_replace(array('/', '\\', '.', ' '), '-', $asset));
-                if (!wp_style_is($handle, 'enqueued')) {
-                    wp_enqueue_style($handle, $src, array(), $themeVersion);
-                }
+// BYT3LAB Builder — enqueue page-specific assets from page JSON config
+add_action('wp_enqueue_scripts', function () {
+    global $post;
+
+    // Detect slug for both front page and regular pages
+    $slug = '';
+    if (is_front_page()) {
+        $slug = 'home';
+    } elseif (!empty($post->post_name)) {
+        $slug = $post->post_name;
+    }
+
+    if (empty($slug)) {
+        return;
+    }
+
+    $jsonPath = get_stylesheet_directory() . '/pages/page-' . $slug . '.json';
+    if (!file_exists($jsonPath)) {
+        return;
+    }
+
+    $cfg = json_decode(file_get_contents($jsonPath), true);
+    if (!is_array($cfg)) {
+        return;
+    }
+
+    // CSS — support both 'css_files' and 'css' keys
+    $cssList = [];
+    if (!empty($cfg['css_files']) && is_array($cfg['css_files'])) {
+        $cssList = $cfg['css_files'];
+    } elseif (!empty($cfg['css']) && is_array($cfg['css'])) {
+        $cssList = $cfg['css'];
+    }
+
+    foreach ($cssList as $i => $asset) {
+        $asset = ltrim($asset, '/');
+        $src = (preg_match('#^https?://#i', $asset) || strpos($asset, '//') === 0)
+            ? $asset
+            : get_stylesheet_directory_uri() . '/' . $asset;
+        $handle = '{{SLUG}}-page-css-' . $slug . '-' . $i;
+        wp_enqueue_style($handle, $src, ['{{SLUG}}-style'], null);
+    }
+
+    // JS — support both 'js_files' and 'js' keys
+    $jsList = [];
+    if (!empty($cfg['js_files']) && is_array($cfg['js_files'])) {
+        $jsList = $cfg['js_files'];
+    } elseif (!empty($cfg['js']) && is_array($cfg['js'])) {
+        $jsList = $cfg['js'];
+    }
+
+    foreach ($jsList as $i => $asset) {
+        $asset = ltrim($asset, '/');
+        $src = (preg_match('#^https?://#i', $asset) || strpos($asset, '//') === 0)
+            ? $asset
+            : get_stylesheet_directory_uri() . '/' . $asset;
+        $handle = '{{SLUG}}-page-js-' . $slug . '-' . $i;
+        wp_enqueue_script($handle, $src, [], null, true);
+    }
+
+    // Component assets — enqueue CSS and JS for each component declared on this page
+    if (!empty($cfg['components']) && is_array($cfg['components'])) {
+        foreach ($cfg['components'] as $ci => $comp) {
+            $compSlug = sanitize_file_name($comp);
+            $compDir  = get_stylesheet_directory() . '/components/' . $compSlug;
+
+            $compCss = $compDir . '/' . $compSlug . '.css';
+            if (file_exists($compCss)) {
+                wp_enqueue_style(
+                    '{{SLUG}}-comp-' . $compSlug,
+                    get_stylesheet_directory_uri() . '/components/' . $compSlug . '/' . $compSlug . '.css',
+                    ['{{SLUG}}-style'],
+                    null
+                );
             }
-        }
 
-        if (!empty($json['assets']['js']) && is_array($json['assets']['js'])) {
-            foreach ($json['assets']['js'] as $asset) {
-                $asset = ltrim($asset, '/');
-                $isExternal = (preg_match('#^https?://#i', $asset) || strpos($asset, '//') === 0);
-                $isThemeAsset = (strpos($asset, 'assets/') === 0);
-                if (!$isExternal && !$isThemeAsset) {
-                    continue;
-                }
-                $src = $isExternal ? $asset : get_stylesheet_directory_uri() . '/' . $asset;
-                $handle = sanitize_key('{{SLUG}}-' . str_replace(array('/', '\\', '.', ' '), '-', $asset));
-                if (!wp_script_is($handle, 'enqueued')) {
-                    wp_enqueue_script($handle, $src, array(), $themeVersion, true);
-                }
+            $compJs = $compDir . '/' . $compSlug . '.js';
+            if (file_exists($compJs)) {
+                wp_enqueue_script(
+                    '{{SLUG}}-comp-js-' . $compSlug,
+                    get_stylesheet_directory_uri() . '/components/' . $compSlug . '/' . $compSlug . '.js',
+                    [],
+                    null,
+                    true
+                );
             }
         }
     }
-});
+}, 20);

@@ -20,23 +20,26 @@
 
                 <?php if (!empty($selectedTheme)): ?>
                     <hr>
-                    <h2>2. Configurer et Créer / Mettre à jour une Page</h2>
+                    <h2><?= isset($editPageData) ? '3. Modifier la Page : ' . esc_html($editPageData['title']) : '2. Configurer et Créer une Page' ?></h2>
                     <form method="POST" action="">
                         <?php wp_nonce_field('generate_page_nonce'); ?>
                         <input type="hidden" name="generate_page" value="1">
                         <input type="hidden" name="theme_slug" value="<?= esc_attr($selectedTheme) ?>">
+                        <?php if (isset($editPageData)): ?>
+                            <input type="hidden" name="is_edit" value="1">
+                        <?php endif; ?>
 
                         <p>
                             <label>Titre de la Page :</label><br>
-                            <input type="text" name="page_title" required class="regular-text" placeholder="Ex: A Propos">
+                            <input type="text" name="page_title" required class="regular-text" placeholder="Ex: A Propos" value="<?= esc_attr($editPageData['title'] ?? '') ?>">
                         </p>
                         <p>
                             <label>Slug de la Page (Optionnel) :</label><br>
-                            <input type="text" name="page_slug" class="regular-text" placeholder="Ex: about">
+                            <input type="text" name="page_slug" class="regular-text" placeholder="Ex: about" value="<?= esc_attr($editPageData['slug'] ?? '') ?>" <?= isset($editPageData) ? 'readonly' : '' ?>>
                         </p>
                         <p>
                             <label>Description SEO courte :</label><br>
-                            <textarea name="page_description" rows="2" class="regular-text"></textarea>
+                            <textarea name="page_description" rows="2" class="regular-text"><?= esc_html($editPageData['description'] ?? '') ?></textarea>
                         </p>
 
                         <div style="display: flex; gap: 20px; align-items: flex-start;">
@@ -44,10 +47,27 @@
                                 <label>Assets CSS à inclure :</label><br>
                                 <div style="display:flex; gap:6px;">
                                     <select id="page_css" name="page_css[]" multiple class="regular-text" style="height: 100px; width:100%;">
-                                        <?php foreach ($availableCss as $css): ?>
-                                            <?php $cssPath = 'assets/css/' . $css; ?>
-                                            <option value="<?= esc_attr($cssPath) ?>"><?= esc_html($css) ?></option>
-                                        <?php endforeach; ?>
+                                        <?php
+                                        $savedCss = $editPageData['css_files'] ?? ($editPageData['css'] ?? []);
+                                        // Show saved ones first in order
+                                        foreach ($savedCss as $cssPath):
+                                            if (in_array(basename($cssPath), $availableCss)):
+                                        ?>
+                                                <option value="<?= esc_attr($cssPath) ?>" selected><?= esc_html(basename($cssPath)) ?></option>
+                                            <?php
+                                            endif;
+                                        endforeach;
+
+                                        // Show remaining unused CSS
+                                        foreach ($availableCss as $css):
+                                            $cssPath = 'assets/css/' . $css;
+                                            if (!in_array($cssPath, $savedCss)):
+                                            ?>
+                                                <option value="<?= esc_attr($cssPath) ?>"><?= esc_html($css) ?></option>
+                                        <?php
+                                            endif;
+                                        endforeach;
+                                        ?>
                                     </select>
                                 </div>
                                 <div style="margin-top:6px;">
@@ -59,10 +79,27 @@
                                 <label>Assets JS à inclure :</label><br>
                                 <div style="display:flex; gap:6px;">
                                     <select id="page_js" name="page_js[]" multiple class="regular-text" style="height: 100px; width:100%;">
-                                        <?php foreach ($availableJs as $js): ?>
-                                            <?php $jsPath = 'assets/js/' . $js; ?>
-                                            <option value="<?= esc_attr($jsPath) ?>"><?= esc_html($js) ?></option>
-                                        <?php endforeach; ?>
+                                        <?php
+                                        $savedJs = $editPageData['js_files'] ?? ($editPageData['js'] ?? []);
+                                        // Show saved ones first in order
+                                        foreach ($savedJs as $jsPath):
+                                            if (in_array(basename($jsPath), $availableJs)):
+                                        ?>
+                                                <option value="<?= esc_attr($jsPath) ?>" selected><?= esc_html(basename($jsPath)) ?></option>
+                                            <?php
+                                            endif;
+                                        endforeach;
+
+                                        // Show remaining unused JS
+                                        foreach ($availableJs as $js):
+                                            $jsPath = 'assets/js/' . $js;
+                                            if (!in_array($jsPath, $savedJs)):
+                                            ?>
+                                                <option value="<?= esc_attr($jsPath) ?>"><?= esc_html($js) ?></option>
+                                        <?php
+                                            endif;
+                                        endforeach;
+                                        ?>
                                     </select>
                                 </div>
                                 <div style="margin-top:6px;">
@@ -74,9 +111,26 @@
                                 <label>Composants à inclure :</label><br>
                                 <div style="display:flex; gap:6px;">
                                     <select id="page_components" name="page_components[]" multiple class="regular-text" style="height: 100px; width:100%;">
-                                        <?php foreach ($availableComponents as $comp): ?>
-                                            <option value="<?= esc_attr($comp) ?>"><?= esc_html($comp) ?></option>
-                                        <?php endforeach; ?>
+                                        <?php
+                                        $savedComps = $editPageData['components'] ?? [];
+                                        // Show saved ones first in order
+                                        foreach ($savedComps as $comp):
+                                            if (in_array($comp, $availableComponents)):
+                                        ?>
+                                                <option value="<?= esc_attr($comp) ?>" selected><?= esc_html($comp) ?></option>
+                                            <?php
+                                            endif;
+                                        endforeach;
+
+                                        // Show remaining unused components
+                                        foreach ($availableComponents as $comp):
+                                            if (!in_array($comp, $savedComps)):
+                                            ?>
+                                                <option value="<?= esc_attr($comp) ?>"><?= esc_html($comp) ?></option>
+                                        <?php
+                                            endif;
+                                        endforeach;
+                                        ?>
                                     </select>
                                 </div>
                                 <div style="margin-top:6px;">
@@ -117,6 +171,7 @@
                                         <td><small><?= esc_html(implode(', ', $pg['css_files'] ?? $pg['css'] ?? [])) ?></small></td>
                                         <td><small><?= esc_html(implode(', ', $pg['js_files'] ?? $pg['js'] ?? [])) ?></small></td>
                                         <td>
+                                            <a href="<?= admin_url('admin.php?page=byt3lab-builder-pages&theme=' . urlencode($selectedTheme) . '&edit=' . urlencode($pg['slug'])) ?>">⚙️ Éditer config</a> |
                                             <a href="<?= admin_url('admin.php?page=byt3lab-builder-editor&theme=' . urlencode($selectedTheme) . '&file=' . urlencode('pages/page-' . $pg['slug'] . '.php')) ?>">Éditer PHP</a> |
                                             <a href="<?= admin_url('admin.php?page=byt3lab-builder-editor&theme=' . urlencode($selectedTheme) . '&file=' . urlencode('pages/page-' . $pg['slug'] . '.json')) ?>">Éditer JSON</a> |
                                             <form method="POST" action="" style="display:inline; margin:0;">
