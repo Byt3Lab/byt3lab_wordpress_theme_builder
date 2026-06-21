@@ -2,12 +2,15 @@
 
 namespace Byt3lab\Builder\Admin;
 
-class AdminMenu {
-    public function register() {
+class AdminMenu
+{
+    public function register()
+    {
         add_action('admin_menu', [$this, 'addMenuItems']);
     }
 
-    public function addMenuItems() {
+    public function addMenuItems()
+    {
         // Main menu
         add_menu_page(
             'BYT3LAB Builder',
@@ -25,7 +28,7 @@ class AdminMenu {
             'Dashboard',
             'Dashboard',
             'manage_options',
-            'byt3lab-builder',
+            'byt3lab-builder-home',
             [new DashboardController(), 'render']
         );
 
@@ -63,6 +66,24 @@ class AdminMenu {
             'manage_options',
             'byt3lab-builder-assets',
             [new AssetController(), 'render']
+        );
+
+        add_submenu_page(
+            'byt3lab-builder',
+            'Éditeur',
+            'Éditeur',
+            'manage_options',
+            'byt3lab-builder-editor',
+            [new EditorController(), 'render']
+        );
+
+        add_submenu_page(
+            'byt3lab-builder',
+            'Export',
+            'Export',
+            'manage_options',
+            'byt3lab-builder-export',
+            [new ExportController(), 'render']
         );
 
         add_submenu_page(

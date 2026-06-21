@@ -1,23 +1,27 @@
 <?php
+
 namespace Byt3lab\Builder\Core;
 
-class ThemeGenerator {
+class ThemeGenerator
+{
     private $fileManager;
     private $configManager;
 
-    public function __construct() {
+    public function __construct()
+    {
         $this->fileManager = new FileManager();
         $this->configManager = new ConfigManager($this->fileManager);
     }
 
-    public function generate($data) {
+    public function generate($data)
+    {
         // Fallback slug to sanitized name if omitted
         if (empty($data['slug'])) {
             $data['slug'] = sanitize_title($data['name']);
         } else {
             $data['slug'] = sanitize_title($data['slug']);
         }
-        
+
         $slug = $data['slug'];
         $themePath = WP_CONTENT_DIR . '/themes/' . $slug;
 
@@ -57,7 +61,7 @@ class ThemeGenerator {
 
         foreach ($stubs as $stub) {
             $content = $this->fileManager->getContents($stubPath . $stub . '.stub');
-            
+
             // Replace placeholders
             $content = str_replace(
                 ['{{NAME}}', '{{SLUG}}', '{{VERSION}}', '{{AUTHOR}}', '{{DESCRIPTION}}'],
@@ -66,6 +70,23 @@ class ThemeGenerator {
             );
 
             $this->fileManager->putContents($themePath . '/' . $stub, $content);
+        }
+
+        // Apply starter template features
+        if (!empty($data['template']) && $data['template'] !== 'base') {
+            $pageGen = new \Byt3lab\Builder\Core\PageGenerator();
+            $compGen = new \Byt3lab\Builder\Core\ComponentGenerator();
+
+            if ($data['template'] === 'corporate') {
+                $pageGen->generate($slug, ['title' => 'Services']);
+                $pageGen->generate($slug, ['title' => 'Contact']);
+                $compGen->generate($slug, ['name' => 'Hero Banner', 'type' => 'section']);
+                $compGen->generate($slug, ['name' => 'Feature List', 'type' => 'element']);
+            } elseif ($data['template'] === 'blog') {
+                $pageGen->generate($slug, ['title' => 'Blog']);
+                $pageGen->generate($slug, ['title' => 'About Me']);
+                $compGen->generate($slug, ['name' => 'Author Bio', 'type' => 'element']);
+            }
         }
 
         return true;
