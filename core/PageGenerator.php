@@ -33,6 +33,23 @@ class PageGenerator
             $this->fileManager->createDirectory($pagesDir);
         }
 
+        // Ensure components referenced by the page exist in the theme.
+        if (!empty($data['components']) && is_array($data['components'])) {
+            $componentsDir = $themePath . '/components';
+            $this->fileManager->createDirectory($componentsDir);
+            foreach ($data['components'] as $comp) {
+                $compSlug = sanitize_file_name($comp);
+                $dest = $componentsDir . '/' . $compSlug;
+                if (!file_exists($dest)) {
+                    // Try to copy from bundled defaults if available
+                    $src = BYT3LAB_BUILDER_PATH . 'defaults/components/' . $compSlug;
+                    if (file_exists($src)) {
+                        $this->fileManager->copyDirectory($src, $dest);
+                    }
+                }
+            }
+        }
+
         // 1. Sauvegarder la configuration JSON
         $jsonPath = $pagesDir . '/page-' . $slug . '.json';
         $this->fileManager->putContents($jsonPath, json_encode($data, JSON_PRETTY_PRINT));
@@ -40,6 +57,7 @@ class PageGenerator
         // 2. Générer le fichier PHP final
         $pagePath = $pagesDir . '/page-' . $slug . '.php';
 
+        // Generate a content-only page template (header/footer managed by page.php loader)
         $phpContent = "<?php\n";
         $phpContent .= "/*\n";
         $phpContent .= "Template Name: " . esc_html($data['title']) . "\n";
@@ -48,37 +66,26 @@ class PageGenerator
         }
         $phpContent .= "*/\n\n";
 
-        $phpContent .= "get_header();\n?>\n\n";
-
-        if (!empty($data['css_files'])) {
-            foreach ($data['css_files'] as $css) {
-                $phpContent .= '<link rel="stylesheet" href="<?= get_template_directory_uri() ?>/assets/css/' . esc_html($css) . '">' . "\n";
-            }
-            $phpContent .= "\n";
-        }
+        $phpContent .= "?>\n\n";
 
         $phpContent .= "<main id=\"primary\" class=\"site-main\">\n\n";
 
         if (!empty($data['components'])) {
             foreach ($data['components'] as $comp) {
-                $phpContent .= "<?php get_template_part('components/" . esc_html($comp) . "/" . esc_html($comp) . "'); ?>\n";
+                $compEsc = esc_html($comp);
+                $phpContent .= "<?php get_template_part('components/{$compEsc}/{$compEsc}'); ?>\n";
             }
         } else {
             $phpContent .= "    <!-- Le contenu généré ou les composants iront ici -->\n";
         }
 
-        $phpContent .= "\n</main>\n\n";
-
-        if (!empty($data['js_files'])) {
-            foreach ($data['js_files'] as $js) {
-                $phpContent .= '<script src="<?= get_template_directory_uri() ?>/assets/js/' . esc_html($js) . '"></script>' . "\n";
-            }
-            $phpContent .= "\n";
-        }
-
-        $phpContent .= "<?php get_footer(); ?>\n";
+        $phpContent .= "\n</main>\n";
 
         $this->fileManager->putContents($pagePath, $phpContent);
+
+        // Ensure dynamic templates updated (page.php / front-page / 404 / home)
+        $templateManager = new TemplateManager();
+        $templateManager->ensureDynamicTemplates($themePath);
 
         // Update config
         $config = $this->configManager->readConfig($themePath);

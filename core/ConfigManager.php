@@ -19,6 +19,12 @@ class ConfigManager {
                 "css" => [],
                 "js" => []
             ]
+            ,
+            "special_pages" => [
+                "front_page" => "",
+                "not_found" => "",
+                "posts_page" => ""
+            ]
         ];
         
         $configJson = json_encode($defaultConfig, JSON_PRETTY_PRINT);

@@ -1,0 +1,7 @@
+{
+    "name": "Services",
+    "slug": "services",
+    "version": "1.0.0",
+    "description": "Liste de services par défaut",
+    "type": "section"
+}

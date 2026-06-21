@@ -1,0 +1,7 @@
+{
+    "name": "Hero",
+    "slug": "hero",
+    "version": "1.0.0",
+    "description": "Default hero component",
+    "type": "section"
+}

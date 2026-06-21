@@ -50,7 +50,12 @@
 
                         <div style="padding: 10px 15px; border-bottom: 1px solid #ddd; background: #f9f9f9; display: flex; justify-content: space-between; align-items: center;">
                             <strong><?= esc_html($selectedFile) ?></strong>
-                            <button type="submit" class="button button-primary">Sauvegarder</button>
+                            <div>
+                                <?php if (basename($selectedFile) === 'index.php'): ?>
+                                    <label style="margin-right:10px;"><input type="checkbox" name="confirm_index_edit" value="1"> Confirmer édition d'index.php</label>
+                                <?php endif; ?>
+                                <button type="submit" class="button button-primary">Sauvegarder</button>
+                            </div>
                         </div>
 
                         <textarea id="byt3lab-code-editor" name="file_content" rows="30" style="width: 100%; font-family: monospace; border: none; padding: 15px;"><?= esc_textarea($fileContent) ?></textarea>
