@@ -105,4 +105,17 @@
             </p>
         <?php endif; ?>
     </form>
+
+    <?php if (!empty($selectedTheme)): ?>
+        <hr />
+        <h3>Maintenance du thème</h3>
+        <p>Si vous avez mis à jour l'extension BYT3LAB Builder, vous pouvez reconstruire les fichiers cœurs du thème (functions.php, header.php, etc.) pour bénéficier des dernières améliorations.</p>
+        <p><strong>Note :</strong> Vos pages et composants ne seront pas modifiés.</p>
+        <form method="POST" action="" onsubmit="return confirm('Êtes-vous sûr de vouloir reconstruire les fichiers cœurs de ce thème ? Les modifications manuelles apportées à functions.php, header.php, etc. seront perdues.');">
+            <?php wp_nonce_field('rebuild_theme_nonce'); ?>
+            <input type="hidden" name="rebuild_theme" value="1">
+            <input type="hidden" name="theme_slug" value="<?= esc_attr($selectedTheme) ?>">
+            <button type="submit" class="button button-secondary">Reconstruire les fichiers cœurs</button>
+        </form>
+    <?php endif; ?>
 </div>

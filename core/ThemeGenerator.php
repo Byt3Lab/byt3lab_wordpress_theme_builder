@@ -48,6 +48,38 @@ class ThemeGenerator
         $this->configManager->createThemeConfig($themePath, $data);
 
         // Copy and Replace stubs
+        $this->applyStubs($themePath, $slug, $data);
+
+        // Apply starter template features
+        if (!empty($data['template']) && $data['template'] !== 'base') {
+            $pageGen = new \Byt3lab\Builder\Core\PageGenerator();
+            $compGen = new \Byt3lab\Builder\Core\ComponentGenerator();
+
+            if ($data['template'] === 'corporate') {
+                $pageGen->generate($slug, ['title' => 'Services']);
+                $pageGen->generate($slug, ['title' => 'Contact']);
+                $compGen->generate($slug, ['name' => 'Hero Banner', 'type' => 'section']);
+                $compGen->generate($slug, ['name' => 'Feature List', 'type' => 'element']);
+            } elseif ($data['template'] === 'blog') {
+                $pageGen->generate($slug, ['title' => 'Blog']);
+                $pageGen->generate($slug, ['title' => 'About Me']);
+                $compGen->generate($slug, ['name' => 'Author Bio', 'type' => 'element']);
+            }
+        }
+
+        return true;
+    }
+
+    /**
+     * Apply theme stubs to a theme directory.
+     *
+     * @param string $themePath
+     * @param string $slug
+     * @param array $data
+     * @return void
+     */
+    public function applyStubs($themePath, $slug, $data)
+    {
         $stubs = [
             'style.css',
             'functions.php',
@@ -71,25 +103,6 @@ class ThemeGenerator
 
             $this->fileManager->putContents($themePath . '/' . $stub, $content);
         }
-
-        // Apply starter template features
-        if (!empty($data['template']) && $data['template'] !== 'base') {
-            $pageGen = new \Byt3lab\Builder\Core\PageGenerator();
-            $compGen = new \Byt3lab\Builder\Core\ComponentGenerator();
-
-            if ($data['template'] === 'corporate') {
-                $pageGen->generate($slug, ['title' => 'Services']);
-                $pageGen->generate($slug, ['title' => 'Contact']);
-                $compGen->generate($slug, ['name' => 'Hero Banner', 'type' => 'section']);
-                $compGen->generate($slug, ['name' => 'Feature List', 'type' => 'element']);
-            } elseif ($data['template'] === 'blog') {
-                $pageGen->generate($slug, ['title' => 'Blog']);
-                $pageGen->generate($slug, ['title' => 'About Me']);
-                $compGen->generate($slug, ['name' => 'Author Bio', 'type' => 'element']);
-            }
-        }
-
-        return true;
     }
 
     /**

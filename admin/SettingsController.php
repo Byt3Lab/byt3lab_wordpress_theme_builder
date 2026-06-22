@@ -70,6 +70,29 @@ class SettingsController
             }
         }
 
+        // Rebuild theme core files
+        if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['rebuild_theme'])) {
+            check_admin_referer('rebuild_theme_nonce');
+
+            if (! current_user_can('manage_options')) {
+                $message = '<div class="notice notice-error is-dismissible"><p>Permission refusée.</p></div>';
+            } else {
+                $theme = sanitize_title($_POST['theme_slug'] ?? '');
+                if (empty($theme)) {
+                    $message = '<div class="notice notice-error is-dismissible"><p>Veuillez sélectionner un thème à reconstruire.</p></div>';
+                } else {
+                    $rebuilder = new \Byt3lab\Builder\Core\ThemeRebuilder();
+                    $result = $rebuilder->rebuild($theme);
+
+                    if (is_wp_error($result)) {
+                        $message = '<div class="notice notice-error is-dismissible"><p>Erreur : ' . esc_html($result->get_error_message()) . '</p></div>';
+                    } else {
+                        $message = '<div class="notice notice-success is-dismissible"><p>Les fichiers cœurs du thème <strong>' . esc_html($theme) . '</strong> ont été mis à jour avec succès !</p></div>';
+                    }
+                }
+            }
+        }
+
         $css_framework = get_option('byt3lab_css_framework', 'none');
         $auto_generate = get_option('byt3lab_auto_generate', '0');
         $auto_backup = get_option('byt3lab_auto_backup', '0');
