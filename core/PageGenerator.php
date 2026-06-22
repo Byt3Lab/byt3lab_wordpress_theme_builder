@@ -25,8 +25,13 @@ class PageGenerator
             return new \WP_Error('missing_title', 'Le nom de la page est requis.');
         }
 
-        $slug = !empty($data['slug']) ? sanitize_title($data['slug']) : sanitize_title($data['title']);
-        $data['slug'] = $slug;
+        $desiredSlug = !empty($data['slug']) ? sanitize_title($data['slug']) : sanitize_title($data['title']);
+
+        // 1. Sync with WordPress first to get the actual slug (handles conflicts/duplicates)
+        $actualSlug = $this->syncWordPressPage($data, $desiredSlug);
+        $data['slug'] = $actualSlug;
+        $slug = $actualSlug;
+
         $isEdit = !empty($_POST['is_edit']);
 
         $pagesDir = $themePath . '/pages';
@@ -59,7 +64,7 @@ class PageGenerator
             }
         }
 
-        // 1. Sauvegarder la configuration JSON
+        // 2. Sauvegarder la configuration JSON
         // Normalize and create page-level assets when necessary
         $themeCssDir = $themePath . '/assets/css';
         $themeJsDir = $themePath . '/assets/js';
@@ -118,7 +123,7 @@ class PageGenerator
         $jsonPath = $pagesDir . '/page-' . $slug . '.json';
         $this->fileManager->putContents($jsonPath, json_encode($data, JSON_PRETTY_PRINT));
 
-        // 2. Générer le fichier PHP final
+        // 3. Générer le fichier PHP final
         $pagePath = $pagesDir . '/page-' . $slug . '.php';
 
         // Generate a content-only page template (assets handled by functions.php enqueue hook)
@@ -130,6 +135,7 @@ Description: __DESCRIPTION__
 */
 // Assets (CSS/JS) for this page are enqueued by functions.php via wp_enqueue_scripts.
 // Edit pages/__PAGE_SLUG__.json to add/remove/reorder assets and components.
+get_header();
 ?>
 
 <main id="primary" class="site-main">
@@ -137,6 +143,8 @@ Description: __DESCRIPTION__
 __COMPONENTS__
 
 </main>
+
+<?php get_footer(); ?>
 PHP;
 
         $componentsHtml = '';
@@ -194,12 +202,50 @@ PHP;
             $this->fileManager->putContents($themePath . '/config.json', $configJson);
         }
 
-
         return true;
     }
 
     /**
-     * Delete a page from a theme (files + config update)
+     * Sychronize builder page with WordPress database and return the final slug.
+     */
+    private function syncWordPressPage($data, $desiredSlug)
+    {
+        $title = $data['title'];
+
+        // Check if page already exists by slug
+        $existingPage = get_posts([
+            'name'           => $desiredSlug,
+            'post_type'      => 'page',
+            'post_status'    => 'any',
+            'posts_per_page' => 1
+        ]);
+
+        $postData = [
+            'post_title'   => $title,
+            'post_name'    => $desiredSlug,
+            'post_status'  => 'publish',
+            'post_type'    => 'page'
+        ];
+
+        if (!empty($existingPage)) {
+            $postId = $existingPage[0]->ID;
+            $postData['ID'] = $postId;
+            wp_update_post($postData);
+        } else {
+            $postId = wp_insert_post($postData);
+        }
+
+        // Get the final slug from WordPress (it might have been changed)
+        $finalSlug = get_post_field('post_name', $postId);
+
+        // Update template meta to use the pages/page-[slug].php file
+        update_post_meta($postId, '_wp_page_template', 'pages/page-' . $finalSlug . '.php');
+
+        return $finalSlug;
+    }
+
+    /**
+     * Delete a page from a theme (files + config update + WP deletion)
      */
     public function delete($theme, $slug)
     {
@@ -217,6 +263,17 @@ PHP;
         }
         if (file_exists($jsonPath)) {
             unlink($jsonPath);
+        }
+
+        // Delete from WordPress database
+        $existingPage = get_posts([
+            'name'           => $slug,
+            'post_type'      => 'page',
+            'post_status'    => 'any',
+            'posts_per_page' => 1
+        ]);
+        if (!empty($existingPage)) {
+            wp_delete_post($existingPage[0]->ID, true);
         }
 
         // Update config
