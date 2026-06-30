@@ -8,6 +8,14 @@ class AdminMenu
     {
         add_action('admin_menu', [$this, 'addMenuItems']);
         add_action('admin_notices', [$this, 'checkPermalinks']);
+        add_action('admin_enqueue_scripts', [$this, 'enqueueEditorAssets']);
+    }
+
+    public function enqueueEditorAssets($hook)
+    {
+        if (strpos($hook, 'byt3lab-builder-editor') !== false) {
+            wp_enqueue_code_editor(array('type' => 'application/x-httpd-php'));
+        }
     }
 
     public function addMenuItems()

@@ -1,0 +1,7 @@
+{
+    "name": "Footer",
+    "slug": "footer",
+    "version": "1.0.0",
+    "description": "Default footer block with copyright",
+    "type": "layout"
+}

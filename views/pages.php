@@ -45,6 +45,7 @@
                         <div style="display: flex; gap: 20px; align-items: flex-start;">
                             <div style="flex: 1;">
                                 <label>Assets CSS à inclure :</label><br>
+                                <input type="search" placeholder="Filtrer les CSS..." style="width: 100%; margin: 5px 0; padding: 4px 8px; border-radius: 4px; border: 1px solid #ccc;">
                                 <div style="display:flex; gap:6px;">
                                     <select id="page_css" name="page_css[]" multiple class="regular-text" style="height: 100px; width:100%;">
                                         <?php
@@ -70,13 +71,10 @@
                                         ?>
                                     </select>
                                 </div>
-                                <div style="margin-top:6px;">
-                                    <button type="button" class="button" onclick="moveOption('page_css', -1)">Monter</button>
-                                    <button type="button" class="button" onclick="moveOption('page_css', 1)">Descendre</button>
-                                </div>
                             </div>
                             <div style="flex: 1;">
                                 <label>Assets JS à inclure :</label><br>
+                                <input type="search" placeholder="Filtrer les JS..." style="width: 100%; margin: 5px 0; padding: 4px 8px; border-radius: 4px; border: 1px solid #ccc;">
                                 <div style="display:flex; gap:6px;">
                                     <select id="page_js" name="page_js[]" multiple class="regular-text" style="height: 100px; width:100%;">
                                         <?php
@@ -102,13 +100,10 @@
                                         ?>
                                     </select>
                                 </div>
-                                <div style="margin-top:6px;">
-                                    <button type="button" class="button" onclick="moveOption('page_js', -1)">Monter</button>
-                                    <button type="button" class="button" onclick="moveOption('page_js', 1)">Descendre</button>
-                                </div>
                             </div>
                             <div style="flex: 1;">
                                 <label>Composants à inclure :</label><br>
+                                <input type="search" placeholder="Filtrer les composants..." style="width: 100%; margin: 5px 0; padding: 4px 8px; border-radius: 4px; border: 1px solid #ccc;">
                                 <div style="display:flex; gap:6px;">
                                     <select id="page_components" name="page_components[]" multiple class="regular-text" style="height: 100px; width:100%;">
                                         <?php
@@ -133,11 +128,6 @@
                                         ?>
                                     </select>
                                 </div>
-                                <div style="margin-top:6px;">
-                                    <button type="button" class="button" onclick="moveOption('page_components', -1)">Monter</button>
-                                    <button type="button" class="button" onclick="moveOption('page_components', 1)">Descendre</button>
-                                </div>
-                                <br><small>Appuyez sur CTRL (ou CMD) pour une sélection multiple.</small>
                             </div>
                         </div>
 
@@ -171,6 +161,7 @@
                                         <td><small><?= esc_html(implode(', ', $pg['css_files'] ?? $pg['css'] ?? [])) ?></small></td>
                                         <td><small><?= esc_html(implode(', ', $pg['js_files'] ?? $pg['js'] ?? [])) ?></small></td>
                                         <td>
+                                            <a href="<?= admin_url('admin.php?page=byt3lab-builder-editor&theme=' . urlencode($selectedTheme) . '&page_slug=' . urlencode($pg['slug'])) ?>" style="font-weight:bold; color:#0284c7;">🚀 Workspace (Édition + Rendu)</a> |
                                             <a href="<?= admin_url('admin.php?page=byt3lab-builder-pages&theme=' . urlencode($selectedTheme) . '&edit=' . urlencode($pg['slug'])) ?>">⚙️ Éditer config</a> |
                                             <a href="<?= admin_url('admin.php?page=byt3lab-builder-editor&theme=' . urlencode($selectedTheme) . '&file=' . urlencode('pages/page-' . $pg['slug'] . '.php')) ?>">Éditer PHP</a> |
                                             <a href="<?= admin_url('admin.php?page=byt3lab-builder-editor&theme=' . urlencode($selectedTheme) . '&file=' . urlencode('pages/page-' . $pg['slug'] . '.json')) ?>">Éditer JSON</a> |
@@ -197,29 +188,245 @@
             <div class="card" style="max-width: 100%; margin-top: 0;">
                 <h2>Info</h2>
                 <p>Les pages générées sont placées dans <code>pages/</code> du thème. Les assets CSS/JS sélectionnés sont enqueués via <code>functions.php</code> dans le <code>&lt;head&gt;</code>.</p>
-                <p><strong>Ordre des assets :</strong> utilisez les boutons Monter/Descendre pour définir l'ordre de chargement, puis cliquez sur Générer.</p>
+                <p><strong>Ordre des assets :</strong> ordonnez vos assets et composants en utilisant le glisser-déposer ci-contre, puis cliquez sur le bouton de génération pour sauvegarder.</p>
             </div>
+
+            <?php if (isset($editPageData)): ?>
+                <?php
+                $pageObj = get_page_by_path($editPageData['slug']);
+                $previewUrl = $pageObj ? get_permalink($pageObj->ID) : home_url('/' . $editPageData['slug']);
+                $previewUrl = add_query_arg('byt3lab_preview_time', time(), $previewUrl);
+                ?>
+                <div class="card" style="max-width: 100%; margin-top: 20px; padding: 15px;">
+                    <h2>👁️ Aperçu en Direct</h2>
+                    <p style="font-size: 12px; color: #666; margin-bottom: 10px;">Le rendu ci-dessous se met à jour à chaque enregistrement ou modification.</p>
+                    <div style="border: 1px solid #ccd0d4; border-radius: 6px; overflow: hidden; background: #f0f0f1; position: relative; height: 550px; box-shadow: inset 0 1px 3px rgba(0,0,0,0.05);">
+                        <iframe id="byt3lab-preview-iframe" src="<?= esc_url($previewUrl) ?>" style="width: 100%; height: 100%; border: none;"></iframe>
+                    </div>
+                    <div style="margin-top: 12px; display: flex; justify-content: space-between; align-items: center;">
+                        <button type="button" class="button" onclick="document.getElementById('byt3lab-preview-iframe').src = document.getElementById('byt3lab-preview-iframe').src;">🔄 Rafraîchir</button>
+                        <a href="<?= esc_url($previewUrl) ?>" target="_blank" class="button button-primary">Ouvrir dans un onglet ↗️</a>
+                    </div>
+                </div>
+            <?php endif; ?>
         </div>
     </div>
 </div>
 <script>
-    function moveOption(selectId, dir) {
+    document.addEventListener('DOMContentLoaded', () => {
+        setupDragDropSelect('page_css', 'Assets CSS disponibles (cliquer pour ajouter) :');
+        setupDragDropSelect('page_js', 'Assets JS disponibles (cliquer pour ajouter) :');
+        setupDragDropSelect('page_components', 'Composants disponibles (cliquer pour ajouter) :');
+    });
+
+    function setupDragDropSelect(selectId, labelText) {
         const sel = document.getElementById(selectId);
         if (!sel) return;
+
+        sel.style.display = 'none';
+        const parent = sel.parentNode;
+        
+        const container = document.createElement('div');
+        container.className = 'byt3lab-dragdrop-container';
+        container.style.marginTop = '8px';
+        
+        const availHeader = document.createElement('div');
+        availHeader.style.fontWeight = '600';
+        availHeader.style.fontSize = '11px';
+        availHeader.style.color = '#4b5563';
+        availHeader.style.marginBottom = '5px';
+        availHeader.innerText = labelText;
+        container.appendChild(availHeader);
+        
+        const availArea = document.createElement('div');
+        availArea.className = 'byt3lab-avail-area';
+        availArea.style.display = 'flex';
+        availArea.style.flexWrap = 'wrap';
+        availArea.style.gap = '6px';
+        availArea.style.padding = '8px';
+        availArea.style.border = '1px dashed #cbd5e1';
+        availArea.style.borderRadius = '6px';
+        availArea.style.background = '#f8fafc';
+        availArea.style.minHeight = '36px';
+        availArea.style.maxHeight = '120px';
+        availArea.style.overflowY = 'auto';
+        availArea.style.marginBottom = '10px';
+        container.appendChild(availArea);
+        
+        const selHeader = document.createElement('div');
+        selHeader.style.fontWeight = '600';
+        selHeader.style.fontSize = '11px';
+        selHeader.style.color = '#4b5563';
+        selHeader.style.marginBottom = '5px';
+        selHeader.innerText = 'Ordre de chargement (glisser-déposer pour réordonner) :';
+        container.appendChild(selHeader);
+        
+        const selectedList = document.createElement('div');
+        selectedList.className = 'byt3lab-selected-list';
+        selectedList.style.display = 'flex';
+        selectedList.style.flexDirection = 'column';
+        selectedList.style.gap = '6px';
+        selectedList.style.padding = '8px';
+        selectedList.style.border = '1px solid #cbd5e1';
+        selectedList.style.borderRadius = '6px';
+        selectedList.style.background = '#ffffff';
+        selectedList.style.minHeight = '60px';
+        selectedList.style.maxHeight = '200px';
+        selectedList.style.overflowY = 'auto';
+        container.appendChild(selectedList);
+        
+        parent.appendChild(container);
+        
+        const optionsData = [];
         for (let i = 0; i < sel.options.length; i++) {
-            if (sel.options[i].selected) {
-                const j = dir === -1 ? i - 1 : i + 1;
-                if (j < 0 || j >= sel.options.length) return;
-                const opt = sel.options[i];
-                const ref = sel.options[j];
-                if (dir === -1) {
-                    sel.insertBefore(opt, ref);
-                } else {
-                    sel.insertBefore(ref, opt);
-                }
-                opt.selected = true;
-                break;
+            const opt = sel.options[i];
+            optionsData.push({
+                value: opt.value,
+                text: opt.text,
+                selected: opt.selected
+            });
+        }
+        
+        renderWidget();
+        
+        const searchInput = parent.querySelector('input[type="search"]');
+        if (searchInput) {
+            searchInput.oninput = function() {
+                const query = this.value.toLowerCase();
+                const chips = availArea.querySelectorAll('.byt3lab-chip');
+                chips.forEach(chip => {
+                    const txt = chip.dataset.text.toLowerCase();
+                    if (txt.includes(query)) {
+                        chip.style.display = 'inline-flex';
+                    } else {
+                        chip.style.display = 'none';
+                    }
+                });
+            };
+        }
+        
+        function renderWidget() {
+            availArea.innerHTML = '';
+            selectedList.innerHTML = '';
+            
+            const selectedItems = optionsData.filter(o => o.selected);
+            const availableItems = optionsData.filter(o => !o.selected);
+            
+            if (availableItems.length === 0) {
+                availArea.innerHTML = '<span style="color:#94a3b8; font-size:11px;">Aucun élément disponible</span>';
+            } else {
+                availableItems.forEach(item => {
+                    const chip = document.createElement('div');
+                    chip.className = 'byt3lab-chip';
+                    chip.dataset.text = item.text;
+                    chip.style.display = 'inline-flex';
+                    chip.style.alignItems = 'center';
+                    chip.style.padding = '4px 10px';
+                    chip.style.background = '#e2e8f0';
+                    chip.style.color = '#334155';
+                    chip.style.borderRadius = '12px';
+                    chip.style.fontSize = '11px';
+                    chip.style.cursor = 'pointer';
+                    chip.style.userSelect = 'none';
+                    chip.style.border = '1px solid #cbd5e1';
+                    chip.innerText = item.text;
+                    
+                    chip.onclick = () => {
+                        item.selected = true;
+                        updateOriginalSelect();
+                        renderWidget();
+                    };
+                    
+                    availArea.appendChild(chip);
+                });
             }
+            
+            if (selectedItems.length === 0) {
+                selectedList.innerHTML = '<span style="color:#94a3b8; font-size:11px; padding: 10px; text-align: center;">Cliquez sur un élément ci-dessus pour l\'ajouter</span>';
+            } else {
+                selectedItems.forEach((item, index) => {
+                    const row = document.createElement('div');
+                    row.className = 'byt3lab-sortable-row';
+                    row.draggable = true;
+                    row.dataset.index = index;
+                    
+                    row.style.display = 'flex';
+                    row.style.alignItems = 'center';
+                    row.style.padding = '6px 10px';
+                    row.style.background = '#f8fafc';
+                    row.style.border = '1px solid #e2e8f0';
+                    row.style.borderRadius = '4px';
+                    row.style.cursor = 'grab';
+                    row.style.fontSize = '12px';
+                    row.style.userSelect = 'none';
+                    
+                    row.innerHTML = `
+                        <span style="margin-right: 8px; color: #94a3b8; font-size: 14px; cursor: grab;">☰</span>
+                        <span style="font-weight: 500; color: #1e293b; flex-grow: 1;">${item.text}</span>
+                        <span class="remove-btn" style="color: #ef4444; cursor: pointer; font-weight: bold; margin-left: 10px; padding: 0 4px; font-size: 14px;">×</span>
+                    `;
+                    
+                    row.querySelector('.remove-btn').onclick = (e) => {
+                        e.stopPropagation();
+                        item.selected = false;
+                        updateOriginalSelect();
+                        renderWidget();
+                    };
+                    
+                    row.addEventListener('dragstart', (e) => {
+                        e.dataTransfer.setData('text/plain', index);
+                        row.style.opacity = '0.5';
+                    });
+                    
+                    row.addEventListener('dragend', () => {
+                        row.style.opacity = '1';
+                    });
+                    
+                    row.addEventListener('dragover', (e) => {
+                        e.preventDefault();
+                        row.style.borderTop = '2px solid #3b82f6';
+                    });
+                    
+                    row.addEventListener('dragleave', () => {
+                        row.style.borderTop = '1px solid #e2e8f0';
+                    });
+                    
+                    row.addEventListener('drop', (e) => {
+                        e.preventDefault();
+                        row.style.borderTop = '1px solid #e2e8f0';
+                        const fromIndex = parseInt(e.dataTransfer.getData('text/plain'), 10);
+                        const toIndex = index;
+                        
+                        if (fromIndex !== toIndex) {
+                            const selectedElements = optionsData.filter(o => o.selected);
+                            const targetItem = selectedElements[fromIndex];
+                            
+                            selectedElements.splice(fromIndex, 1);
+                            selectedElements.splice(toIndex, 0, targetItem);
+                            
+                            const unselectedElements = optionsData.filter(o => !o.selected);
+                            optionsData.length = 0;
+                            optionsData.push(...selectedElements, ...unselectedElements);
+                            
+                            updateOriginalSelect();
+                            renderWidget();
+                        }
+                    });
+                    
+                    selectedList.appendChild(row);
+                });
+            }
+        }
+        
+        function updateOriginalSelect() {
+            sel.innerHTML = '';
+            optionsData.forEach(item => {
+                const opt = document.createElement('option');
+                opt.value = item.value;
+                opt.text = item.text;
+                opt.selected = item.selected;
+                sel.appendChild(opt);
+            });
         }
     }
 </script>

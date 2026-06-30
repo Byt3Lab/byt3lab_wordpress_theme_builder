@@ -1,0 +1,7 @@
+{
+    "name": "Contact Form",
+    "slug": "contact",
+    "version": "1.0.0",
+    "description": "Default contact section with contact form",
+    "type": "section"
+}

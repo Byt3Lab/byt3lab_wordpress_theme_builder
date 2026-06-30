@@ -1,0 +1,8 @@
+.byt3lab-contact button:hover {
+    background: #1d4ed8 !important;
+}
+.byt3lab-contact input:focus, .byt3lab-contact textarea:focus {
+    outline: none;
+    border-color: #2563eb !important;
+    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+}

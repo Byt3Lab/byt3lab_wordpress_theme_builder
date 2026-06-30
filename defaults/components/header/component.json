@@ -1,0 +1,7 @@
+{
+    "name": "Header",
+    "slug": "header",
+    "version": "1.0.0",
+    "description": "Default header navigation component",
+    "type": "layout"
+}

@@ -63,21 +63,74 @@ class EditorController
         $files = [];
         $fileContent = '';
         $ext = '';
+        $pageSlug = $_GET['page_slug'] ?? '';
+        $isWorkspaceMode = !empty($pageSlug);
+
         if ($selectedTheme && isset($builderThemes[$selectedTheme])) {
             $themePath = WP_CONTENT_DIR . '/themes/' . $selectedTheme;
-            $iterator = new \RecursiveIteratorIterator(new \RecursiveDirectoryIterator($themePath));
-            foreach ($iterator as $file) {
-                if ($file->isFile()) {
-                    $path = substr($file->getRealPath(), strlen($themePath) + 1);
-                    // Filter allowed extensions
-                    if (preg_match('/\.(php|css|js|json)$/', $path)) {
-                        $files[] = $path;
+
+            if ($isWorkspaceMode) {
+                // Page Workspace Mode - only load files related to this page
+                $pageJsonPath = $themePath . '/pages/page-' . $pageSlug . '.json';
+                if (file_exists($pageJsonPath)) {
+                    $pageData = json_decode(file_get_contents($pageJsonPath), true);
+                    
+                    // 1. Add page JSON and PHP
+                    $files[] = 'pages/page-' . $pageSlug . '.json';
+                    $files[] = 'pages/page-' . $pageSlug . '.php';
+
+                    // 2. Add page CSS assets
+                    $cssList = $pageData['css_files'] ?? ($pageData['css'] ?? []);
+                    foreach ($cssList as $css) {
+                        if (strpos($css, 'http') === false) {
+                            $files[] = ltrim($css, '/');
+                        }
+                    }
+
+                    // 3. Add page JS assets
+                    $jsList = $pageData['js_files'] ?? ($pageData['js'] ?? []);
+                    foreach ($jsList as $js) {
+                        if (strpos($js, 'http') === false) {
+                            $files[] = ltrim($js, '/');
+                        }
+                    }
+
+                    // 4. Add page components files
+                    $compList = $pageData['components'] ?? [];
+                    foreach ($compList as $comp) {
+                        $comp = sanitize_file_name($comp);
+                        $compDir = 'components/' . $comp;
+                        if (file_exists($themePath . '/' . $compDir)) {
+                            $files[] = $compDir . '/' . $comp . '.php';
+                            if (file_exists($themePath . '/' . $compDir . '/' . $comp . '.css')) {
+                                $files[] = $compDir . '/' . $comp . '.css';
+                            }
+                            if (file_exists($themePath . '/' . $compDir . '/' . $comp . '.js')) {
+                                $files[] = $compDir . '/' . $comp . '.js';
+                            }
+                        }
                     }
                 }
+            } else {
+                // Regular Mode - list all files
+                $iterator = new \RecursiveIteratorIterator(new \RecursiveDirectoryIterator($themePath));
+                foreach ($iterator as $file) {
+                    if ($file->isFile()) {
+                        $path = substr($file->getRealPath(), strlen($themePath) + 1);
+                        if (preg_match('/\.(php|css|js|json)$/', $path)) {
+                            $files[] = $path;
+                        }
+                    }
+                }
+                sort($files);
             }
-            sort($files);
 
-            if ($selectedFile && in_array($selectedFile, $files)) {
+            if ($selectedFile && in_array($selectedFile, $files) && file_exists($themePath . '/' . $selectedFile)) {
+                $fileContent = file_get_contents($themePath . '/' . $selectedFile);
+                $ext = pathinfo($selectedFile, PATHINFO_EXTENSION);
+            } elseif (!empty($files)) {
+                // Fallback to first available file if not specified or invalid
+                $selectedFile = $files[0];
                 $fileContent = file_get_contents($themePath . '/' . $selectedFile);
                 $ext = pathinfo($selectedFile, PATHINFO_EXTENSION);
             }

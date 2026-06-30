@@ -10,7 +10,7 @@ class ComponentGenerator {
         $this->configManager = new ConfigManager($this->fileManager);
     }
 
-    public function generate($theme, $data) {
+    public function generate($theme, $data, $userContent = null) {
         $themePath = WP_CONTENT_DIR . '/themes/' . $theme;
         
         if (!file_exists($themePath)) {
@@ -47,11 +47,14 @@ class ComponentGenerator {
     ?>
 
     <div class="component-__SLUG__">
-        <!-- content here -->
+        <!-- BYT3LAB-CONTENT-START -->
+        __USER_CONTENT__
+        <!-- BYT3LAB-CONTENT-END -->
     </div>
     PHP;
 
-            $phpContent = str_replace('__SLUG__', $compSlug, $phpTemplate);
+            $userContentStr = ($userContent !== null) ? $userContent : "        <!-- content here -->";
+            $phpContent = str_replace(['__SLUG__', '__USER_CONTENT__'], [$compSlug, $userContentStr], $phpTemplate);
         $this->fileManager->putContents($compDir . '/' . $compSlug . '.php', $phpContent);
 
         // CSS
